@@ -11,7 +11,7 @@ public enum RockPaperScissors {
 		this.commentary = commentary;
 	}
 	
-	public String getcommentary() {
+	public String getCommentary() {
 		return this.commentary;
 	}
 	
