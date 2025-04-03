@@ -14,6 +14,8 @@ import com.junha.common.RockPaperScissors;
 import com.junha.common.RpsRule;
 import com.junha.domain.RpsChallenge;
 import com.junha.domain.User;
+import com.junha.event.EventDispatcher;
+import com.junha.event.RpsSolvedEvent;
 import com.junha.repository.RpsChallengeRepository;
 import com.junha.repository.UserRepository;
 
@@ -25,6 +27,7 @@ public class RpsService {
 	private final RandomGeneratorService randomGeneratorService;
 	private final RpsChallengeRepository rpsChallengeRepository;
 	private final UserRepository userRepository;
+	private final EventDispatcher eventDispatcher;
 	
 	private RockPaperScissors createRandomRps() {
 		return randomGeneratorService.getRockPaperScissors();
@@ -33,72 +36,6 @@ public class RpsService {
 	private GameResult checkScore(RockPaperScissors userRps, RockPaperScissors computerRps) {
 		/*static 메소드 사용하기*/
 		return RpsRule.checkMap.get(userRps).get(computerRps);
-		
-		/*강사 리팩토링*/
-		/*조건문을 사용하진 않지만 리소스 낭비가 심함.*/
-//		Map<RockPaperScissors, GameResult> userRock = new HashMap<>();
-//		userRock.put(RockPaperScissors.PAPER, GameResult.LOST);
-//		userRock.put(RockPaperScissors.ROCK, GameResult.TIE);
-//		userRock.put(RockPaperScissors.SCISSORS, GameResult.WON);
-//		
-//		Map<RockPaperScissors, GameResult> userPaper = new HashMap<>();
-//		userPaper.put(RockPaperScissors.PAPER, GameResult.TIE);
-//		userPaper.put(RockPaperScissors.ROCK, GameResult.WON);
-//		userPaper.put(RockPaperScissors.SCISSORS, GameResult.LOST);
-//		
-//		Map<RockPaperScissors, GameResult> userScissors = new HashMap<>();
-//		userScissors.put(RockPaperScissors.PAPER, GameResult.WON);
-//		userScissors.put(RockPaperScissors.ROCK, GameResult.LOST);
-//		userScissors.put(RockPaperScissors.SCISSORS, GameResult.TIE);
-//		
-//		Map<RockPaperScissors, Map<RockPaperScissors, GameResult>> checkMap = new HashMap<>();
-//		checkMap.put(RockPaperScissors.ROCK, userRock);
-//		checkMap.put(RockPaperScissors.PAPER, userPaper);
-//		checkMap.put(RockPaperScissors.SCISSORS, userScissors);
-//		return checkMap.get(userRps).get(computerRps);
-		
-		
-		/*직접 리팩토링 코드 HashMap 사용*/
-//		GameResult result = GameResult.LOST;
-//		Map<RockPaperScissors, RockPaperScissors> rpsMap = new HashMap<>();
-//		
-//		rpsMap.put(RockPaperScissors.SCISSORS, RockPaperScissors.PAPER);
-//		rpsMap.put(RockPaperScissors.ROCK, RockPaperScissors.SCISSORS);
-//		rpsMap.put(RockPaperScissors.PAPER, RockPaperScissors.ROCK);
-//		
-//		if (userRps == computerRps) {
-//			result = GameResult.TIE;
-//		} else {
-//			if (rpsMap.get(userRps) == computerRps) {
-//				result = GameResult.WON;
-//			} else {
-//				result = GameResult.LOST;
-//			}
-//		}
-		
-		/*리팩토링 되지 않은 이전 코드*/
-//		GameResult result = GameResult.LOST;
-//		if (userRps == computerRps) {
-//			result = GameResult.TIE;
-//		} else if (userRps == RockPaperScissors.SCISSORS) {
-//			if (computerRps == RockPaperScissors.ROCK){
-//				result = GameResult.LOST;
-//			} else {
-//				result = GameResult.WON;
-//			}
-//		} else if (userRps == RockPaperScissors.ROCK) {
-//			if (computerRps == RockPaperScissors.SCISSORS){
-//				result = GameResult.WON;
-//			} else {
-//				result = GameResult.LOST;
-//			}
-//		} else if (userRps == RockPaperScissors.PAPER) {
-//			if (computerRps == RockPaperScissors.SCISSORS){
-//				result = GameResult.LOST;
-//			} else {
-//				result = GameResult.WON;
-//			}
-//		}
 	}
 	
 	@Transactional //save를 여러번 할때 중간에 에러나면 롤백하여 전체 취소
@@ -117,6 +54,14 @@ public class RpsService {
 				gameResult
 			);
 		rpsChallengeRepository.save(checkedChallenge);
+		
+		//이벤트 달성 코드 추가
+		eventDispatcher.send(new RpsSolvedEvent(
+				checkedChallenge.getId(), 
+				checkedChallenge.getUser().getId(),
+				checkedChallenge.getUser().getAlias(), 
+				checkedChallenge.getGameResult().getCommentary()
+				));
 		
 		map.put("opponent", computerChoice.getCommentary()); //컴퓨터 가위바위보
 		map.put("outcome", checkedChallenge.getGameResult().getCommentary()); //결과
